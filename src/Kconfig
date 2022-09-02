@@ -1,0 +1,55 @@
+menu "Wifi Sniffer Configuration"
+
+config WIFI_COUNTRY
+    string "Country"
+    default "AUS"
+    help
+        The three letter country code that corresponds /
+        to the area that you are operating in. Values/
+        must reflect ISO/IEC3166-1. See this link for/
+        allowable options. https://en.wikipedia.org/wiki/List_of_ISO_3166_country_codes
+
+config START_CHANNEL
+    int "Start Channel"
+    default 1
+    help
+        The channel that scanning will start on
+
+config END_CHANNEL
+    int "End Channel"
+    default 13
+    help
+        The channel that scanning will stop on
+
+config MAXIMUM_PKT_SIZE
+    int "Maximum Packet Size"
+    default 501
+    help
+        The maximum size, in bytes, that will be /
+        handled by the packet callback. Any values /
+        over this will be silently dropped
+
+config QUEUE_SIZE
+    int "Queue Size"
+    default 100
+    help
+        The size of the Queue that will hold WiFi packets/
+        prior to processing. If the queue is full then /
+        packets will be dropped silently.
+
+config HOP_DWELL_TIME
+    int "Hopping dwell time (ms)"
+    default 2000
+    help
+        Amount of time, in milliseconds, to dwell /
+        on each channel before hopping.
+
+config HOP
+    bool "Enable WiFi Channel Hopping"
+    default y
+    help
+        If enabled then device will hop between the /
+        wifi channels set by the start and end /
+        channel variables.
+
+endmenu
