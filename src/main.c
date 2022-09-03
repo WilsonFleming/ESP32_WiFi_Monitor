@@ -24,7 +24,7 @@ void app_main() {
     }
 
     ESP_LOGI(TAG, "[+] Launching writing task");
-    xTaskCreate(&write_packet_task, "write_task", 5000, NULL, 5, &xHandle_write);
+    xTaskCreate(&handle_packet_task, "write_task", 5000, NULL, 5, &xHandle_write);
     
     if(xHandle_write == NULL) {
         ESP_LOGE(TAG, "[!] ERROR - Write task creation failed.");

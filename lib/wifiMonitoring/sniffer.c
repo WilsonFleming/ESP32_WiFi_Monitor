@@ -33,7 +33,7 @@ void sniffer_init() {
 
     // Captures Management, Control and Misc packets
     const wifi_promiscuous_filter_t filter = {
-        .filter_mask = WIFI_PROMIS_FILTER_MASK_MGMT || WIFI_PROMIS_FILTER_MASK_CTRL || WIFI_PROMIS_FILTER_MASK_MISC
+        .filter_mask = WIFI_PROMIS_FILTER_MASK_MGMT
     };
 
     ESP_ERROR_CHECK(esp_wifi_set_promiscuous_filter(&filter));
@@ -57,7 +57,7 @@ void sniffer_packet_handler(void *buff, wifi_promiscuous_pkt_type_t type) {
     if(uxQueueSpacesAvailable(packet_queue) > 0 && pkt_len < CONFIG_MAXIMUM_PKT_SIZE) {
         xQueueSendToBack(packet_queue, pkt, CONFIG_MAXIMUM_PKT_SIZE);
     
-        ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Packet Processed - Size: %d, RSSI: %d", pkt_len, pkt_rssi);
+        // ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Packet Processed - Size: %d, RSSI: %d", pkt_len, pkt_rssi);
     }
 }
 
@@ -67,7 +67,7 @@ void sniffer_deinit() {
     ESP_ERROR_CHECK(esp_wifi_deinit());
 }
 
-void write_packet_task(void *pvParameter) {
+void handle_packet_task(void *pvParameter) {
 
     BaseType_t packet;
     char buff[CONFIG_MAXIMUM_PKT_SIZE];
@@ -81,6 +81,7 @@ void write_packet_task(void *pvParameter) {
         packet = xQueueReceive(packet_queue, &buff, 100/ portTICK_PERIOD_MS );
 
         if(packet == pdTRUE) {
+            handle_beacon(buff);
             // TODO - Write packet to Disk
         }   
     }
@@ -118,8 +119,68 @@ void hopping_task(void *pvParameter) {
 
         esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
 
-        ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Started sniffing on channel %d", channel);
+        // ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Started sniffing on channel %d", channel);
 
         vTaskDelay ( CONFIG_HOP_DWELL_TIME / portTICK_PERIOD_MS );
     }
 }
+
+void handle_beacon(void *buf) {
+    wifi_promiscuous_pkt_t *packet = (wifi_promiscuous_pkt_t*)buf;
+    uint8_t type;
+    uint8_t subtype;
+
+    // Get type
+    type = packet->payload[0] & 0x0F;
+    subtype = packet->payload[0] >> 4;
+
+    switch(type) {
+        case MANAGEMENT:
+            switch(subtype){
+                case ASSOCIATION_REQUEST:
+                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Association Request collected.");
+                    break;
+                case REASSOCIATION_REQUEST:
+                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Reassociation request collected.");
+                    break;
+                case PROBE_REQUEST:
+                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Probe request collected.");
+                    break;
+                case TIMING_ADVERTISMENT:
+                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Timing advertisment collected.");
+                    break;
+                case BEACON:
+                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Beacon request collected.");
+                    break;
+                case DISASSOCIATION:
+                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Disassociation request collected.");
+                    break;
+                case DEAUTHENTICATION:
+                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Deauthentication request collected.");
+                    break;
+                case AUTHENTICATION:
+                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Authentication request collected.");
+                    break;
+                case ACTION:
+                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Action request collected");
+                    break;
+                case ASSOCIATION_RESPONSE:
+                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Association response collected");
+                    break;
+                case REASSOCIATION_RESPONSE:
+                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Reassociation response collected");
+                    break;
+                case PROBE_RESPONSE:
+                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Probe response collected");
+                    break;
+            }
+            break;
+        case DATA:
+            ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Data frame collected - this shouldn't happen.");
+            break;
+        case CONTROL:
+            ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Control frame collected - this shouldn't happen.");
+    
+    }
+
+} 
