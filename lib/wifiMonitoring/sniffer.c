@@ -72,8 +72,6 @@ void handle_packet_task(void *pvParameter) {
     BaseType_t packet;
     char buff[CONFIG_MAXIMUM_PKT_SIZE];
 
-    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Packet writing task started.");
-
     // TODO - Handle SD Card mounting
 
     while(true) {
@@ -127,8 +125,14 @@ void hopping_task(void *pvParameter) {
 
 void handle_beacon(void *buf) {
     wifi_promiscuous_pkt_t *packet = (wifi_promiscuous_pkt_t*)buf;
+    
+    
+#ifdef EXTRACT_PACKET
+
     uint8_t type;
     uint8_t subtype;
+    uint8_t length;
+    char ssid[33];
 
     // Get type
     type = packet->payload[0] & 0x0F;
@@ -138,40 +142,46 @@ void handle_beacon(void *buf) {
         case MANAGEMENT:
             switch(subtype){
                 case ASSOCIATION_REQUEST:
-                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Association Request collected.");
+                    // ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Association Request collected.");
                     break;
                 case REASSOCIATION_REQUEST:
-                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Reassociation request collected.");
+                    // ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Reassociation request collected.");
                     break;
                 case PROBE_REQUEST:
-                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Probe request collected.");
+                    // ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Probe request collected.");
                     break;
                 case TIMING_ADVERTISMENT:
-                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Timing advertisment collected.");
+                    // ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Timing advertisment collected.");
                     break;
                 case BEACON:
-                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Beacon request collected.");
+                    // ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Beacon request collected.");
+                    length = packet->payload[37];
+                    if(length != 0) {
+                        memcpy(&ssid, &packet->payload[38], length);
+                        ssid[length] = 0x00;
+                    }                    
+                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] SSID is: %s.", ssid);
                     break;
                 case DISASSOCIATION:
-                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Disassociation request collected.");
+                    // ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Disassociation request collected.");
                     break;
                 case DEAUTHENTICATION:
-                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Deauthentication request collected.");
+                    // ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Deauthentication request collected.");
                     break;
                 case AUTHENTICATION:
-                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Authentication request collected.");
+                    // ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Authentication request collected.");
                     break;
                 case ACTION:
-                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Action request collected");
+                    // ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Action request collected");
                     break;
                 case ASSOCIATION_RESPONSE:
-                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Association response collected");
+                    // ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Association response collected");
                     break;
                 case REASSOCIATION_RESPONSE:
-                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Reassociation response collected");
+                    // ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Reassociation response collected");
                     break;
                 case PROBE_RESPONSE:
-                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Probe response collected");
+                    // ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Probe response collected");
                     break;
             }
             break;
@@ -179,8 +189,9 @@ void handle_beacon(void *buf) {
             ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Data frame collected - this shouldn't happen.");
             break;
         case CONTROL:
-            ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Control frame collected - this shouldn't happen.");
-    
+            ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Control frame collected - this shouldn't happen.");    
     }
+
+#endif
 
 } 
