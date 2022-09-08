@@ -131,7 +131,7 @@ void hopping_task(void *pvParameter) {
 }
 
 void add_station(wifi_promiscuous_pkt_t *packet) {
-    if(_current_stations == 255) {
+    if(_current_stations > 255) {
         return;
     }
     
