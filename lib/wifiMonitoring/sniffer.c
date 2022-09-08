@@ -132,7 +132,8 @@ void handle_beacon(void *buf) {
     uint8_t type;
     uint8_t subtype;
     uint8_t length;
-    char ssid[33];
+    char essid[33];
+    char bssid[6];
 
     // Get type
     type = packet->payload[0] & 0x0F;
@@ -155,12 +156,17 @@ void handle_beacon(void *buf) {
                     break;
                 case BEACON:
                     // ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Beacon request collected.");
+
+                    // Get BSSID
+                    memcpy(&bssid, &packet->payload[16], 6);
+
+                    // Get ESSID 
                     length = packet->payload[37];
                     if(length != 0) {
-                        memcpy(&ssid, &packet->payload[38], length);
-                        ssid[length] = 0x00;
-                    }                    
-                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] SSID is: %s.", ssid);
+                        memcpy(&essid, &packet->payload[38], length);
+                        essid[length] = 0x00;
+                    }              
+                    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] BSSID is %02x:%02x:%02x:%02x:%02x:%02x and SSID is: %s.", bssid[0], bssid[1], bssid[2], bssid[3], bssid[4], bssid[5], essid);
                     break;
                 case DISASSOCIATION:
                     // ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Disassociation request collected.");
