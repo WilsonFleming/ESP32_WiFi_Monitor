@@ -5,6 +5,13 @@ TaskHandle_t xHandle_write = NULL;
 TaskHandle_t xHandle_sniff = NULL;
 TaskHandle_t xHandle_hop = NULL;
 
+
+uint8_t _current_stations = 0;
+uint8_t _current_clients = 0;
+
+client_t clients[255];
+station_t stations[255];
+
 static const char * SNIFFER_TAG = "Sniffer";
 
 void sniffer_init() {
@@ -123,16 +130,56 @@ void hopping_task(void *pvParameter) {
     }
 }
 
+void add_station(wifi_promiscuous_pkt_t *packet) {
+    if(_current_stations == 255) {
+        return;
+    }
+    
+    station_t *station = &stations[_current_stations];
+    uint8_t length;
+
+    length = packet->payload[37];
+    
+    memcpy(&(station->bssid), &(packet->payload[16]), 6);
+
+    if(length != 0) {
+        memcpy(&(station->essid), &(packet->payload[38]), length);
+        station->essid[length] = 0x00;
+    }
+
+    station->last_rssi = packet->rx_ctrl.rssi;
+
+    memcpy(&(station->last_timestamp), &(packet->payload[24]), 8);
+
+    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Added station with BSSID %02x:%02x:%02x:%02x:%02x:%02x, SSID: %s, RSSI: %d, timestamp: %llu |", station->bssid[0], station->bssid[1], station->bssid[2], station->bssid[3], station->bssid[4], station->bssid[5], station->essid, station->last_rssi, station->last_timestamp);
+
+    _current_stations++;
+}
+
+bool check_station_exists(char* bssid) {
+    int i;
+
+    for(i = 0; i < 256; ++i) {
+        if ( memcmp(&(stations[i].bssid), bssid, 6) == 0 ) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void handle_beacon(void *buf) {
     wifi_promiscuous_pkt_t *packet = (wifi_promiscuous_pkt_t*)buf;
     
     
 #ifdef EXTRACT_PACKET
+    bool exists;
 
     uint8_t type;
     uint8_t subtype;
+#ifdef DEBUG
     uint8_t length;
     char essid[33];
+#endif
     char bssid[6];
 
     // Get type
@@ -160,6 +207,12 @@ void handle_beacon(void *buf) {
                     // Get BSSID
                     memcpy(&bssid, &packet->payload[16], 6);
 
+                    exists = check_station_exists((char *)&packet->payload[16]);
+
+                    if(!exists) {
+                        add_station(packet);
+                    }
+#ifdef DEBUG
                     // Get ESSID 
                     length = packet->payload[37];
                     if(length != 0) {
@@ -167,6 +220,7 @@ void handle_beacon(void *buf) {
                         essid[length] = 0x00;
                     }              
                     ESP_LOGI(SNIFFER_TAG, "[SNIFFER] BSSID is %02x:%02x:%02x:%02x:%02x:%02x and SSID is: %s.", bssid[0], bssid[1], bssid[2], bssid[3], bssid[4], bssid[5], essid);
+#endif
                     break;
                 case DISASSOCIATION:
                     // ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Disassociation request collected.");
