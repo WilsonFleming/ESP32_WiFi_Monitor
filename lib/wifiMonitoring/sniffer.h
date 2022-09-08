@@ -48,13 +48,11 @@ typedef struct station_t {
     char bssid[6];
     char essid[33];
     uint8_t last_rssi;
-    uint64_t last_timestamp;
 } station_t;
 
 typedef struct client_t {
     char mac[6];
     uint8_t last_rssi;
-    uint64_t last_timestamp;
 } client_t;
 
 extern uint8_t _current_stations;
@@ -70,7 +68,8 @@ void handle_packet_task(void *pvParameter);
 void sniffer_task(void *pvParameter);
 void hopping_task(void *pvParameter);
 void handle_beacon(void *buf);
-bool check_station_exists(char* bssid);
+bool check_station_exists(wifi_promiscuous_pkt_t *packet);
 void add_station(wifi_promiscuous_pkt_t *packet);
+void update_station(uint8_t position, wifi_promiscuous_pkt_t *packet);
 
 #endif // SNIFFER_H_

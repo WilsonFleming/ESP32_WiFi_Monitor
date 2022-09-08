@@ -54,12 +54,10 @@ void sniffer_init() {
 
 void sniffer_packet_handler(void *buff, wifi_promiscuous_pkt_type_t type) {
     int pkt_len;
-    int pkt_rssi;
 
     wifi_promiscuous_pkt_t *pkt = (wifi_promiscuous_pkt_t *)buff;
 
     pkt_len = pkt->rx_ctrl.sig_len;
-    pkt_rssi = pkt->rx_ctrl.rssi;
 
     if(uxQueueSpacesAvailable(packet_queue) > 0 && pkt_len < CONFIG_MAXIMUM_PKT_SIZE) {
         xQueueSendToBack(packet_queue, pkt, CONFIG_MAXIMUM_PKT_SIZE);
@@ -131,7 +129,7 @@ void hopping_task(void *pvParameter) {
 }
 
 void add_station(wifi_promiscuous_pkt_t *packet) {
-    if(_current_stations > 255) {
+    if(_current_stations == 255) {
         return;
     }
     
@@ -149,18 +147,27 @@ void add_station(wifi_promiscuous_pkt_t *packet) {
 
     station->last_rssi = packet->rx_ctrl.rssi;
 
-    memcpy(&(station->last_timestamp), &(packet->payload[24]), 8);
-
-    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Added station with BSSID %02x:%02x:%02x:%02x:%02x:%02x, SSID: %s, RSSI: %d, timestamp: %llu |", station->bssid[0], station->bssid[1], station->bssid[2], station->bssid[3], station->bssid[4], station->bssid[5], station->essid, station->last_rssi, station->last_timestamp);
+    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] Added station with BSSID %02x:%02x:%02x:%02x:%02x:%02x, SSID: %s, RSSI: %d |", station->bssid[0], station->bssid[1], station->bssid[2], station->bssid[3], station->bssid[4], station->bssid[5], station->essid, station->last_rssi);
 
     _current_stations++;
 }
 
-bool check_station_exists(char* bssid) {
+void update_station(uint8_t position, wifi_promiscuous_pkt_t *packet) {
+    if( stations[position].last_rssi == packet->rx_ctrl.rssi ) {
+        return;
+    }
+    
+    stations[position].last_rssi = packet->rx_ctrl.rssi;
+
+    ESP_LOGI(SNIFFER_TAG, "[SNIFFER] %s new RSSI: %d", stations[position].essid, stations[position].last_rssi);
+}
+
+bool check_station_exists(wifi_promiscuous_pkt_t *packet) {
     int i;
 
     for(i = 0; i < 256; ++i) {
-        if ( memcmp(&(stations[i].bssid), bssid, 6) == 0 ) {
+        if ( memcmp(&(stations[i].bssid), (char *)&packet->payload[16], 6) == 0 ) {
+            update_station(i, packet);
             return true;
         }
     }
@@ -207,7 +214,7 @@ void handle_beacon(void *buf) {
                     // Get BSSID
                     memcpy(&bssid, &packet->payload[16], 6);
 
-                    exists = check_station_exists((char *)&packet->payload[16]);
+                    exists = check_station_exists(packet);
 
                     if(!exists) {
                         add_station(packet);
